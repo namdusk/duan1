@@ -57,6 +57,140 @@ class TransportationApp:
         self.solve_lcm_btn.grid(row=2, column=0, columnspan=2)
         self.solve_modi_btn.grid(row=2, column=2, columnspan=3)
         self.result_text.grid(row=3, column=0, columnspan=5)
+
+    def set_dimensions(self):
+        try:
+            self.rows = int(self.rows_entry.get())
+            self.cols = int(self.cols_entry.get())
+            self.entries = []
+            for widget in self.matrix_frame.winfo_children():
+                widget.destroy()
+            for i in range(self.rows + 1):
+                row_entries = []
+                for j in range(self.cols + 1):
+                    e = tk.Entry(self.matrix_frame, width=5)
+                    e.grid(row=i, column=j)
+                    row_entries.append(e)
+                self.entries.append(row_entries)
+        except ValueError:
+            messagebox.showerror("Đầu vào không hợp lệ", "Nhập số nguyên hợp lệ cho số hàng và số cột")
+
+    def get_data(self):
+        try:
+            cost = np.zeros((self.rows, self.cols), dtype=int)
+            supply = np.zeros(self.rows, dtype=int)
+            demand = np.zeros(self.cols, dtype=int)
+            for i in range(self.rows):
+                for j in range(self.cols):
+                    cost[i][j] = int(self.entries[i][j].get())
+                supply[i] = int(self.entries[i][self.cols].get())
+            for j in range(self.cols):
+                demand[j] = int(self.entries[self.rows][j].get())
+
+            # Cân bằng cung -cầu
+            S, D = supply.sum(), demand.sum()
+            if S != D:
+                diff = abs(S - D)
+                if S > D:
+                    # Thêm điểm cầu giả
+                    demand = np.append(demand, diff)
+                    # Mở rộng cost: thêm 1 cột zero-cost
+                    cost = np.hstack([
+                        cost,
+                        np.zeros((cost.shape[0], 1), dtype=int)
+                    ])
+                    messagebox.showinfo("Cân bằng", "Đã thêm 1 điểm cầu giả (cost = 0).")
+                else:
+                    # Thêm điểm cung giả
+                    supply = np.append(supply, diff)
+                    # Mở rộng cost: thêm 1 hàng zero-cost
+                    cost = np.vstack([
+                        cost,
+                        np.zeros((1, cost.shape[1]), dtype=int)
+                    ])
+                    messagebox.showinfo("Cân bằng", "Đã thêm 1 điểm cung giả (cost = 0).")
+            # --- Kết thúc cân bằng cung - cầu ---
+
+            return cost, supply, demand
+        except ValueError:
+            messagebox.showerror("Đầu vào không hợp lệ", "Nhập số nguyên hợp lệ cho chi phí, cung và cầu")
+            return None, None, None
+
+    def compute_total_cost(self, cost, allocation):
+        return np.sum(cost * allocation)
+
+    def least_cost_method(self, cost, supply, demand):
+        allocation = np.zeros_like(cost)
+        supply = supply.copy()
+        demand = demand.copy()
+        while np.any(supply) and np.any(demand):
+            # Tính chi phí lớn nếu supply hoặc demand đã cạn
+            masked_cost = cost + (supply[:, None] == 0) * 1e6 + (demand == 0) * 1e6
+            idx = np.argmin(masked_cost)
+            i, j = divmod(idx, cost.shape[1])
+            qty = min(supply[i], demand[j])
+            allocation[i][j] = qty
+            supply[i] -= qty
+            demand[j] -= qty
+        return allocation
+
+    def solve_lcm(self):
+        cost, supply, demand = self.get_data()
+        if cost is None:
+            return
+        self.cost = cost
+        self.supply = supply
+        self.demand = demand
+        self.allocation = self.least_cost_method(cost, supply, demand)
+        total_cost = self.compute_total_cost(cost, self.allocation)
+
+        self.result_text.delete(1.0, tk.END)
+        self.result_text.insert(tk.END, "Phân bổ ban đầu (Least Cost Method):\n")
+        self.result_text.insert(tk.END, f"{self.allocation}\n")
+        self.result_text.insert(tk.END, f"Tổng chi phí vận chuyển (LCM): {total_cost}\n")
+
+    def solve_modi(self):
+        if not hasattr(self, 'cost') or not hasattr(self, 'supply') or not hasattr(self, 'demand'):
+            messagebox.showerror("Lỗi", "Chạy LCM trước khi chạy MODI")
+            return
+
+        cost = self.cost
+        supply = self.supply
+        demand = self.demand
+        rows, cols = cost.shape
+        c = cost.flatten()
+
+        # Ma trận ràng buộc cung
+        A_eq_supply = np.zeros((rows, rows * cols))
+        for i in range(rows):
+            A_eq_supply[i, i * cols:(i + 1) * cols] = 1
+
+        # Ma trận ràng buộc cầu
+        A_eq_demand = np.zeros((cols, rows * cols))
+        for j in range(cols):
+            for i in range(rows):
+                A_eq_demand[j, i * cols + j] = 1
+
+        A_eq = np.vstack([A_eq_supply, A_eq_demand])
+        b_eq = np.concatenate([supply, demand])
+        bounds = [(0, None) for _ in range(rows * cols)]
+
+        res = linprog(c, A_eq=A_eq, b_eq=b_eq, bounds=bounds, method='highs')
+
+        if res.success:
+            optimized_allocation = res.x.reshape((rows, cols))
+            total_cost = self.compute_total_cost(cost, optimized_allocation)
+
+            self.result_text.insert(tk.END, "\n Phân bổ tối ưu:\n")
+            self.result_text.insert(tk.END, f"{np.round(optimized_allocation, 2)}\n")
+            self.result_text.insert(tk.END, f"Tổng chi phí vận chuyển sau khi tối ưu (MODI): {total_cost:.2f}\n")
+        else:
+            messagebox.showerror("Error", "Không thể tối ưu")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = TransportationApp(root)
+    root.mainloop()
 </code></pre>
 </body>
 </html>
