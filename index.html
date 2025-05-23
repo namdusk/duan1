@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Code Python - Bài toán vận tải</title>
+  <!-- Highlight.js (One Dark theme) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+  <script>hljs.highlightAll();</script>
+  <style>
+    body {
+      margin: 0;
+      padding: 2rem;
+      background-color: #282c34;
+      color: #abb2bf;
+      font-family: 'Fira Code', monospace;
+    }
+    pre {
+      background: #1e2127;
+      padding: 1.5rem;
+      border-radius: 10px;
+      overflow-x: auto;
+      font-size: 15px;
+    }
+    code {
+      display: block;
+      white-space: pre;
+    }
+  </style>
+</head>
+<body>
+<pre><code class="language-python">
+import tkinter as tk
+from tkinter import messagebox
+import numpy as np
+from scipy.optimize import linprog
+
+class TransportationApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Giải quyết bài toán vận tải - LCM + MODI")
+
+        self.rows_entry = tk.Entry(root, width=5)
+        self.cols_entry = tk.Entry(root, width=5)
+        self.set_dim_btn = tk.Button(root, text="tạo ma trận", command=self.set_dimensions)
+        self.matrix_frame = tk.Frame(root)
+        self.solve_lcm_btn = tk.Button(root, text="LCM", command=self.solve_lcm)
+        self.solve_modi_btn = tk.Button(root, text="Tối ưu với MODI", command=self.solve_modi)
+        self.result_text = tk.Text(root, height=25, width=90)
+
+        self.rows_entry.grid(row=0, column=1)
+        self.cols_entry.grid(row=0, column=3)
+        tk.Label(root, text="Hàng:").grid(row=0, column=0)
+        tk.Label(root, text="Cột:").grid(row=0, column=2)
+        self.set_dim_btn.grid(row=0, column=4)
+        self.matrix_frame.grid(row=1, column=0, columnspan=5, pady=10)
+        self.solve_lcm_btn.grid(row=2, column=0, columnspan=2)
+        self.solve_modi_btn.grid(row=2, column=2, columnspan=3)
+        self.result_text.grid(row=3, column=0, columnspan=5)
+</code></pre>
+</body>
+</html>
